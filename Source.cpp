@@ -33,6 +33,7 @@ class Joint {
 public:
 	int rect[2][2];
 	Joint* child[2];
+	bool leaf;
 
 	Joint(int x1, int y1, int x2, int y2){
 		rect[0][0] = x1;
@@ -42,6 +43,8 @@ public:
 
 		child[0] = NULL;
 		child[1] = NULL;
+
+		leaf = true;
 	}
 
 	Joint(int x, int y): Joint(x, y, x + 1, y + 1) {}
@@ -72,6 +75,11 @@ public:
 		if (rect[0][0] <= other.rect[0][0] && rect[0][1] <= other.rect[0][1] && rect[1][0] >= other.rect[0][0] && rect[1][1] >= other.rect[0][1]) return true;
 		else return false;
 	}
+
+	Joint Copy() {
+		Joint A(rect[0][0], rect[0][1], rect[1][0], rect[1][1]);
+		return A;
+	}
 };
 
 class RTree {
@@ -88,16 +96,18 @@ public:
 			int depth = 1;
 			Joint* cur_j = root;
 			do {
-				/*if (cur_j->rect[0][0] < new_j->rect[0][0]) cur_j->rect[0][0] = new_j->rect[0][0];
+				if (cur_j->rect[0][0] < new_j->rect[0][0]) cur_j->rect[0][0] = new_j->rect[0][0];
 				if (cur_j->rect[0][1] < new_j->rect[0][1]) cur_j->rect[0][1] = new_j->rect[0][1];
 				if (cur_j->rect[1][0] > new_j->rect[1][0]) cur_j->rect[1][0] = new_j->rect[1][0];
-				if (cur_j->rect[1][1] > new_j->rect[1][1]) cur_j->rect[1][1] = new_j->rect[1][1];*/
+				if (cur_j->rect[1][1] > new_j->rect[1][1]) cur_j->rect[1][1] = new_j->rect[1][1];
 
-				if (cur_j->child[0] == NULL) {
-					cur_j->child[1] = cur_j;
+				if (cur_j->leaf) {
+					cur_j->child[1] = &cur_j->Copy();
 					cur_j->child[0] = new_j;
-				else {
-
+					cur_j->leaf = false;
+				} else {
+					cur_j = Closest(cur_j->child[0], cur_j->child[1], new_j);
+					depth++;
 				}
 			} while (depth <= size);
 		}
@@ -133,8 +143,8 @@ int Distance(Joint d, Joint j) {
 	}
 }
 
-Joint* Closest(Joint* A, Joint* B, Joint c) {
-	if (Distance(c, A) <= Distance(c, B)) return A;
+Joint* Closest(Joint* A, Joint* B, Joint* c) {
+	if (Distance(*c, *A) <= Distance(*c, *B)) return A;
 	else return B;
 }
 
