@@ -51,6 +51,8 @@ public:
 
 	Joint(int* a): Joint(a[0], a[1]) {}
 
+	Joint() : Joint(0, 0) {}
+
 	void SetChild(Joint* a){
 		if (child[0] == NULL) child[0] = a;
 		else child[1] = a;
@@ -67,58 +69,15 @@ public:
 	void WriteCoords(string name) {
 		int* a = this->GetCoords();
 		cout << name << ": (" << a[0] << ", " << a[1] << "), (" << a[2] << ", " << a[3] << ")" << endl;
-		if (child[0] != NULL) child[0]->WriteCoords(name + "L");
-		if (child[1] != NULL) child[1]->WriteCoords(name + "R");
+		if (not this->leaf) {
+			child[0]->WriteCoords(name + "L");
+			child[1]->WriteCoords(name + "R");
+		}
 	}
 
 	bool Inside(Joint other) {
 		if (rect[0][0] <= other.rect[0][0] && rect[0][1] <= other.rect[0][1] && rect[1][0] >= other.rect[0][0] && rect[1][1] >= other.rect[0][1]) return true;
 		else return false;
-	}
-
-	Joint Copy() {
-		Joint A(rect[0][0], rect[0][1], rect[1][0], rect[1][1]);
-		return A;
-	}
-};
-
-class RTree {
-
-public:
-	int size = 0;
-	Joint* root = NULL;
-
-	void Insert(Joint* new_j) {
-		if (size == 0) {
-			root = new_j;
-			size = 1;
-		} else {
-			int depth = 1;
-			Joint* cur_j = root;
-			do {
-				if (cur_j->rect[0][0] < new_j->rect[0][0]) cur_j->rect[0][0] = new_j->rect[0][0];
-				if (cur_j->rect[0][1] < new_j->rect[0][1]) cur_j->rect[0][1] = new_j->rect[0][1];
-				if (cur_j->rect[1][0] > new_j->rect[1][0]) cur_j->rect[1][0] = new_j->rect[1][0];
-				if (cur_j->rect[1][1] > new_j->rect[1][1]) cur_j->rect[1][1] = new_j->rect[1][1];
-
-				if (cur_j->leaf) {
-					cur_j->child[1] = &cur_j->Copy();
-					cur_j->child[0] = new_j;
-					cur_j->leaf = false;
-				} else {
-					cur_j = Closest(cur_j->child[0], cur_j->child[1], new_j);
-					depth++;
-				}
-			} while (depth <= size);
-		}
-	}
-
-	void WriteTree() {
-		cout << "size of tree: " << size << endl;
-		if (size > 0) {
-			root->WriteCoords("r");
-		}
-		cout << endl;
 	}
 };
 
@@ -143,6 +102,49 @@ int Distance(Joint d, Joint j) {
 	}
 }
 
+class RTree {
+
+public:
+	int size = 0;
+	Joint* root = NULL;
+
+	void Insert(Joint* new_j) {
+		if (size == 0) {
+			root = new_j;
+			size = 1;
+		} else {
+			int depth = 1;
+			Joint* cur_j = root;
+			do {
+				Joint* A = new Joint(cur_j->GetCoords());
+				if (cur_j->rect[0][0] > new_j->rect[0][0]) cur_j->rect[0][0] = new_j->rect[0][0];
+				if (cur_j->rect[0][1] > new_j->rect[0][1]) cur_j->rect[0][1] = new_j->rect[0][1];
+				if (cur_j->rect[1][0] < new_j->rect[1][0]) cur_j->rect[1][0] = new_j->rect[1][0];
+				if (cur_j->rect[1][1] < new_j->rect[1][1]) cur_j->rect[1][1] = new_j->rect[1][1];
+
+				if (cur_j->leaf) {
+					cur_j->child[1] = A;
+					cur_j->child[0] = new_j;
+					cur_j->leaf = false;
+					if (size == depth) size++;
+					break;
+				} else {
+					// if (*cur_j->child[1].Inside(new_j))
+					if (Distance(*new_j, *cur_j->child[0]) <= Distance(*new_j, *cur_j->child[1])) cur_j = cur_j->child[0];
+					else cur_j = cur_j->child[1];
+					depth++;
+				}
+			} while (depth <= size);
+		}
+	}
+
+	void WriteTree() {
+		cout << "size of tree: " << size << endl;
+		if (size > 0) root->WriteCoords("r");
+		cout << endl;
+	}
+};
+
 Joint* Closest(Joint* A, Joint* B, Joint* c) {
 	if (Distance(*c, *A) <= Distance(*c, *B)) return A;
 	else return B;
@@ -153,13 +155,13 @@ void MakeTree() {
 	RTree tree;
 	Joint A(1, 1);
 	Joint B(3, 5);
-
-	tree.WriteTree();
+	Joint C(4, 2);
 
 	tree.Insert(&A);
+	tree.Insert(&B);
 	tree.WriteTree();
 
-	tree.Insert(&B);
+	tree.Insert(&C);
 	tree.WriteTree();
 }
 
